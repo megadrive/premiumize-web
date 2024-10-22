@@ -1,11 +1,20 @@
-export function premiumize() {
+import type { Account_Info } from "./premiumize.types";
+
+async function apiCall<T>(apikey: string, path: string, options?: RequestInit) {
   const url = "https://www.premiumize.com/api";
 
-  return function (apikey: string) {
-    return function (path: string) {
-      const finalUrl = `${url}/${path}${path.includes("?") ? "&" : "?"}apikey=${apikey}`;
+  const finalUrl = `${url}/${path}${path.includes("?") ? "&" : "?"}apikey=${apikey}`;
 
-      return fetch(finalUrl).then((res) => res.json());
-    };
+  const res = await fetch(finalUrl, options);
+
+  return res.json() as T;
+}
+
+/** Premiumize API */
+export function premiumize(apikey: string) {
+  return {
+    account: {
+      info: () => apiCall<Account_Info>(apikey, "account/info"),
+    },
   };
 }
