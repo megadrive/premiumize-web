@@ -54,3 +54,18 @@ export type Account_Info = ApiResponse & {
   limit_used: number;
   space_used: number;
 };
+
+export type Authorize_Preflight = {
+  verification_uri: string;
+  user_code: string;
+  device_code: string;
+  interval: number;
+};
+
+export type Authorize_Token = {
+  access_token: string;
+  token_type: "bearer";
+  expires_in: number;
+  scope: string;
+  refresh_token: string;
+};

@@ -17,15 +17,24 @@ export const useAppState = create<AppState>((set) => ({
 // --- User Store
 
 type UserState = {
-  apikey: string;
-  setApiKey: (apikey: string) => void;
+  token: string;
+  expires_in: number;
+  is_expired: () => boolean;
+  setUserAuth: (token: string, expires_in: number) => void;
 };
 
 export const useUserStore = create<UserState>()(
   persist(
-    (set) => ({
-      apikey: "",
-      setApiKey: (apikey: string) => set((state) => ({ ...state, apikey })),
+    (set, get) => ({
+      is_expired() {
+        return (
+          Date.now() > new Date(Date.now() + get().expires_in * 1000).getTime()
+        );
+      },
+      token: "",
+      expires_in: 0,
+      setUserAuth: (token: string, expires_in: number) =>
+        set((state) => ({ ...state, token, expires_in })),
     }),
     {
       name: "user-store",

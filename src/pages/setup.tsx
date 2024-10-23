@@ -1,38 +1,47 @@
 import { useUserStore } from "~/stores";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { premiumize } from "~/lib/premiumize";
 import Head from "next/head";
-import type { Account_Info } from "~/lib/premiumize.types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import Link from "next/link";
 
-const formSchema = z.object({
-  apikey: z.string().min(1),
-});
-type FormData = z.infer<typeof formSchema>;
+function useHash() {
+  const [hash, setHash] = useState("");
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    setHash(hash);
+  }, []);
+  return hash;
+}
 
 export default function Setup() {
-  const { apikey, setApiKey } = useUserStore();
-  const { handleSubmit, register, formState } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-  });
-  const [account, setAccount] = useState<string>();
+  const [authInfo] = useState<
+    ReturnType<ReturnType<typeof premiumize>["authorize"]["authInfo"]>
+  >(premiumize("").authorize.authInfo());
+  const { setUserAuth } = useUserStore();
+  const router = useRouter();
 
-  const onSubmit = async (data: FormData) => {
-    try {
-      const info = await premiumize(data.apikey).account.info();
-      if (info.status !== "success") {
-        alert("Error occurred! Double-check your API key.");
-        throw new Error("Potentially invalid API Key.");
+  const hash = useHash();
+  useEffect(() => {
+    if (hash.length > 0) {
+      // hash to json
+      const conv = Object.fromEntries(new URLSearchParams(hash));
+      const auth = {
+        token: conv.access_token,
+        expires: conv.expires_in,
+        type: conv.token_type, // Bearer
+      };
+      if (!auth.token || !auth.expires) {
+        throw new Error("invalid auth");
       }
 
-      setAccount(info.customer_id);
-      setApiKey(data.apikey);
-    } catch (error) {
-      console.error(error);
+      setUserAuth(auth.token, +auth.expires);
+      router.push("/app").catch(console.error);
     }
-  };
+  }, [hash, setUserAuth, router]);
+  if (!router.isReady) {
+    return <>Loading...</>;
+  }
 
   return (
     <div className="flex h-screen flex-col items-center justify-center">
@@ -40,35 +49,11 @@ export default function Setup() {
         <title>Premiumize - Setup</title>
       </Head>
       <div className="flex flex-col items-center justify-center">
-        <h2 className="text-3xl font-bold">Setup</h2>
-        <h3>
-          Enter your API key below.{" "}
-          <a href="https://www.premiumize.me/account">Find it here.</a>
-        </h3>
-        <h3>{account}</h3>
-        <div className="flex flex-row gap-1">
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div>
-              <input
-                type="password"
-                placeholder="API Key"
-                {...register("apikey")}
-                className="border-slate w-full rounded border px-4 py-2 text-2xl"
-              />
-              <div className="text-red-500">
-                {formState.errors.apikey?.message}
-              </div>
-            </div>
-            <div>
-              <button
-                type="submit"
-                className="hover:bg w-full rounded border border-zinc-700 bg-zinc-700 px-2 py-1 text-lg text-white"
-              >
-                {formState ? "Update" : "Create"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <Link href={authInfo.url}>
+          <div className="w-full rounded-md border border-slate-900 bg-slate-900 px-6 py-2 text-center text-xl font-semibold text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+            Login via Premiumize -&gt;
+          </div>
+        </Link>
       </div>
     </div>
   );
